@@ -1,9 +1,9 @@
-from airflow.hooks.base import BaseHook
 import json
 import logging
 import requests
 
 from .petfinder_api_pull import PetfinderApiPull
+import animals
 
 
 def _determine_num_of_pages(pf_json):
@@ -21,30 +21,23 @@ class PetfinderApiResult:
 
 class PetfinderApiManager:
 
-    def __init__(self):
-        self.conn = BaseHook.get_connection("petfinder_api")
+    def __init__(self, data_url, token_url, api_key, secret_key):
+        self.data_url = data_url
+        self.token_url = token_url
+        self.api_key = api_key
+        self.secret_key = secret_key
 
         self.access_token = None
 
-    def _get_api_keys(self) -> dict:
-        api_key = self.conn.extradejson.get("api_key")
-        api_secret = self.conn.extradejson.get("secret_api_key")
-
-        return {
-            'api_key': api_key,
-            'api_secret_key': api_secret
-        }
-
     def _get_access_token(self):
-        api_keys = self._get_api_keys()
-        host_url = self.conn.host
+
         data = {
             'grant_type': 'client_credentials',
-            'client_id': api_keys['api_key'],
-            'client_secret': api_keys['api_secret_key']
+            'client_id': self.api_key,
+            'client_secret': self.secret_key
         }
 
-        response = requests.post(host_url, data=data)
+        response = requests.post(self.token_url, data=data)
 
         response.raise_for_status()
 
@@ -53,12 +46,14 @@ class PetfinderApiManager:
 
         return access_token
 
-    def get_from_api(self, **params):
+    def get_from_api(self, category, **params):
         if not self.access_token:
             self.access_token = self._get_access_token()
 
         pf_pull = PetfinderApiPull(
             access_token=self.access_token,
+            data_url=self.data_url,
+            category=category,
             **params
         )
 
@@ -66,7 +61,8 @@ class PetfinderApiManager:
             data = pf_pull.pull_data(**params)
         except requests.exceptions.HTTPError as http_err:
             if http_err.response.status_code == 401:
-                logging.info(f"Received HTTPError 401 from Petfinder API. Getting new access token and continuing pull.")
+                logging.info(
+                    f"Received HTTPError 401 from Petfinder API. Getting new access token and continuing pull.")
                 self.access_token = self._get_access_token()
                 pf_pull.access_token = self.access_token
                 data = pf_pull.pull_data(**params)
@@ -75,3 +71,18 @@ class PetfinderApiManager:
 
         return data
 
+    def get_animals(self):
+        pf_animals = {}
+        dog_data = self.get_from_api(category='animals',
+                                     type='dog')
+        for id_, data in dog_data.items():
+            new_animal = animals.create_animal(**data)
+            pf_animals[id_] = new_animal
+
+        cat_data = self.get_from_api(category='animals',
+                                     type='cat')
+        for id_, data in cat_data.items():
+            new_animal = animals.create_animal(**data)
+            pf_animals[id_] = new_animal
+
+        return pf_animals
