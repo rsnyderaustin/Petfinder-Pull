@@ -2,6 +2,7 @@ import json
 import logging
 import requests
 
+from .petfinder_access_token import PetfinderAccessToken
 from .petfinder_api_pull import PetfinderApiPull
 import animals
 
@@ -29,7 +30,7 @@ class PetfinderApiManager:
 
         self.access_token = None
 
-    def _get_access_token(self):
+    def _get_access_token(self) -> PetfinderAccessToken:
 
         data = {
             'grant_type': 'client_credentials',
@@ -42,7 +43,8 @@ class PetfinderApiManager:
         response.raise_for_status()
 
         json_data = response.json()
-        access_token = json_data.get('access_token')
+
+        access_token = PetfinderAccessToken(json_data)
 
         return access_token
 
@@ -62,7 +64,8 @@ class PetfinderApiManager:
         except requests.exceptions.HTTPError as http_err:
             if http_err.response.status_code == 401:
                 logging.info(
-                    f"Received HTTPError 401 from Petfinder API. Getting new access token and continuing pull.")
+                    f"Received HTTPError 401 from Petfinder API. Getting new access token and attempting to continue "
+                    f"pull.")
                 self.access_token = self._get_access_token()
                 pf_pull.access_token = self.access_token
                 data = pf_pull.pull_data(**params)
@@ -72,17 +75,14 @@ class PetfinderApiManager:
         return data
 
     def get_animals(self):
-        pf_animals = {}
         dog_data = self.get_from_api(category='animals',
                                      type='dog')
-        for id_, data in dog_data.items():
-            new_animal = animals.create_animal(**data)
-            pf_animals[id_] = new_animal
+        dogs = {id_: animals.create_animal(**data) for id_, data in dog_data.items()}
 
         cat_data = self.get_from_api(category='animals',
                                      type='cat')
-        for id_, data in cat_data.items():
-            new_animal = animals.create_animal(**data)
-            pf_animals[id_] = new_animal
+        cats = {id_: animals.create_animal(**data) for id_, data in cat_data.items()}
+
+        pf_animals = dogs | cats
 
         return pf_animals

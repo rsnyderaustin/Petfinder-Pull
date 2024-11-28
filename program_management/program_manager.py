@@ -2,7 +2,7 @@ from datetime import datetime
 
 from .animals_data_comparer import determine_database_actions
 from .database_actions import DatabaseActions
-from dynamodb_management import DynamodbManager, DynamodbParameters
+from dynamodb_management import DynamodbManager
 from petfinder_api import PetfinderApiManager
 from petfinder_enums import PetfinderParameters
 
@@ -33,17 +33,22 @@ class ProgramManager:
 
         db_actions = determine_database_actions(pf_animals=pf_animals, db_animals=db_animals)
 
-        self.dynamodb_manager.add_animals({pf_animals[id_] for id_ in db_actions[DatabaseActions.SHOULD_ADD]})
-        self.dynamodb_manager.mark_animals_removed({db_animals[id_] for id_ in db_actions[DatabaseActions.MARK_REMOVED]})
+        animals_to_add = {pf_animals[id_] for id_ in db_actions[DatabaseActions.SHOULD_ADD]}
+        self.dynamodb_manager.add_animals(animals_to_add)
+
+        animals_to_remove = {db_animals[id_] for id_ in db_actions[DatabaseActions.MARK_REMOVED]}
+        self.dynamodb_manager.mark_animals_removed(animals_to_remove)
 
         for id_ in db_actions[DatabaseActions.CHANGE_STATUS]:
+            animal = pf_animals[id_]
             self.dynamodb_manager.change_parameter(
-                animal=pf_animals[id_],
-                **{PetfinderParameters.STATUS.value: getattr(pf_animals[id_], PetfinderParameters.STATUS.value)}
+                animal=animal,
+                **{PetfinderParameters.STATUS.value: getattr(animal, PetfinderParameters.STATUS.value)}
             )
 
         for id_ in db_actions[DatabaseActions.CHANGE_ORG_ID]:
+            animal = pf_animals[id_]
             self.dynamodb_manager.change_parameter(
-                animal=pf_animals[id_],
-                **{PetfinderParameters.ORGANIZATION_ID.value: getattr(pf_animals[id_], PetfinderParameters.ORGANIZATION_ID.value)}
+                animal=animal,
+                **{PetfinderParameters.ORGANIZATION_ID.value: getattr(animal, PetfinderParameters.ORGANIZATION_ID.value)}
             )

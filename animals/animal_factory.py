@@ -27,6 +27,6 @@ def create_animal(**params):
         animal_id=data['animal_id'],
         org_id=data['organization_id'],
         status=data['status'],
-        **{k: v for k, v in data.items() if k not in ['animal_id', 'organization_id', 'status']}
+        params={k: v for k, v in data.items() if k not in ['animal_id', 'organization_id', 'status']}
     )
     return new_animal

@@ -22,7 +22,7 @@ def lambda_handler():
     data_url = os.getenv('PF_DATA_REQUEST_URL')
     token_url = os.getenv('PF_ACCESS_TOKEN_URL')
     dynamodb_table_name = os.getenv('PF_DYNAMODB_TABLE_NAME')
-    
+
     prog_manager = program_management.ProgramManager(
         api_key=api_key,
         secret_key=secret_key,

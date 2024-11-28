@@ -15,17 +15,17 @@ class DynamodbManager:
 
     def get_animals(self) -> dict:
         response = self.table.scan(
-            ProjectExpression=f"{PetfinderParameters.ANIMAL_ID}, #status, #org_id",
+            ProjectExpression=f"{PetfinderParameters.ANIMAL_ID.value}, #status, #org_id",
             ExpressionAttributeNames={
-                '#status': PetfinderParameters.STATUS,
-                '#org_id': PetfinderParameters.ORGANIZATION_ID
+                '#status': PetfinderParameters.STATUS.value,
+                '#org_id': PetfinderParameters.ORGANIZATION_ID.value
             }
         )
         items = response.get('Items', [])
 
-        while 'LastEvaluatedKey' in response:
+        while 'LastEvaluatedKey' in response:  # Means there is more data to scan
             response = self.table.scan(
-                ProjectExpression=f"{PetfinderParameters.ANIMAL_ID}, #status",
+                ProjectExpression=f"{PetfinderParameters.ANIMAL_ID.value}, #status",
                 ExpressionAttributeNames={
                     '#status': PetfinderParameters.STATUS,
                     '#org_id': PetfinderParameters.ORGANIZATION_ID
@@ -36,10 +36,11 @@ class DynamodbManager:
 
         animals = {}
         for item in items:
-            animals[item[PetfinderParameters.ANIMAL_ID]] = Animal(
-                animal_id=PetfinderParameters.ANIMAL_ID,
-                org_id=PetfinderParameters.ORGANIZATION_ID,
-                status=PetfinderParameters.STATUS
+            animal_id = item[PetfinderParameters.ANIMAL_ID.value]
+            animals[animal_id] = Animal(
+                animal_id=item[PetfinderParameters.ANIMAL_ID.value],
+                org_id=item[PetfinderParameters.ORGANIZATION_ID.value],
+                status=item[PetfinderParameters.STATUS.value]
             )
 
         return animals
